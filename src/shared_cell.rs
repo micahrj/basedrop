@@ -1,6 +1,5 @@
 use crate::{Node, Shared, SharedInner};
 
-use core::marker::PhantomData;
 use core::ptr::NonNull;
 use core::sync::atomic::{fence, AtomicPtr, AtomicUsize, Ordering};
 
@@ -13,7 +12,6 @@ use core::sync::atomic::{fence, AtomicPtr, AtomicUsize, Ordering};
 pub struct SharedCell<T> {
     readers: AtomicUsize,
     node: AtomicPtr<Node<SharedInner<T>>>,
-    phantom: PhantomData<Shared<T>>,
 }
 
 unsafe impl<T: Send + Sync> Send for SharedCell<T> {}
@@ -37,7 +35,6 @@ impl<T: Send + 'static> SharedCell<T> {
         SharedCell {
             readers: AtomicUsize::new(0),
             node: AtomicPtr::new(node),
-            phantom: PhantomData,
         }
     }
 }
@@ -63,7 +60,6 @@ impl<T> SharedCell<T> {
 
         let shared = Shared {
             node: unsafe { NonNull::new_unchecked(self.node.load(Ordering::SeqCst)) },
-            phantom: PhantomData,
         };
         let copy = shared.clone();
         core::mem::forget(shared);
@@ -119,7 +115,6 @@ impl<T> SharedCell<T> {
 
         Shared {
             node: unsafe { NonNull::new_unchecked(old) },
-            phantom: PhantomData,
         }
     }
 
@@ -144,7 +139,6 @@ impl<T> SharedCell<T> {
         core::mem::forget(self);
         Shared {
             node: unsafe { NonNull::new_unchecked(node.into_inner()) },
-            phantom: PhantomData,
         }
     }
 }
@@ -153,7 +147,6 @@ impl<T> Drop for SharedCell<T> {
     fn drop(&mut self) {
         let _ = Shared {
             node: unsafe { NonNull::new_unchecked(self.node.load(Ordering::Relaxed)) },
-            phantom: PhantomData,
         };
     }
 }

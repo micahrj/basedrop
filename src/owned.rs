@@ -1,6 +1,5 @@
 use crate::{Handle, Node};
 
-use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
 
@@ -15,7 +14,6 @@ use core::ptr::NonNull;
 /// [`Handle`]: crate::Handle
 pub struct Owned<T> {
     node: NonNull<Node<T>>,
-    phantom: PhantomData<T>,
 }
 
 unsafe impl<T: Send> Send for Owned<T> {}
@@ -34,7 +32,6 @@ impl<T: Send + 'static> Owned<T> {
     pub fn new(handle: &Handle, data: T) -> Owned<T> {
         Owned {
             node: unsafe { NonNull::new_unchecked(Node::alloc(handle, data)) },
-            phantom: PhantomData,
         }
     }
 }

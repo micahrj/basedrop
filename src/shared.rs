@@ -1,6 +1,5 @@
 use crate::{Handle, Node};
 
-use core::marker::PhantomData;
 use core::ops::Deref;
 use core::ptr::NonNull;
 use core::sync::atomic::{AtomicUsize, Ordering, fence};
@@ -17,7 +16,6 @@ use core::sync::atomic::{AtomicUsize, Ordering, fence};
 /// [`Handle`]: crate::Handle
 pub struct Shared<T> {
     pub(crate) node: NonNull<Node<SharedInner<T>>>,
-    pub(crate) phantom: PhantomData<SharedInner<T>>,
 }
 
 pub(crate) struct SharedInner<T> {
@@ -46,7 +44,6 @@ impl<T: Send + 'static> Shared<T> {
                     data,
                 }))
             },
-            phantom: PhantomData,
         }
     }
 }
@@ -86,7 +83,7 @@ impl<T> Clone for Shared<T> {
             self.node.as_ref().data.count.fetch_add(1, Ordering::Relaxed);
         }
 
-        Shared { node: self.node, phantom: PhantomData }
+        Shared { node: self.node }
     }
 }
 
