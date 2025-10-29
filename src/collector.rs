@@ -319,25 +319,47 @@ impl Collector {
     ///
     /// drop(handle);
     /// drop(x);
-    /// collector.collect();
     ///
     /// assert!(collector.try_cleanup().is_ok());
     /// ```
     ///
     /// [`Handle`]: crate::Handle
-    pub fn try_cleanup(self) -> Result<(), Self> {
-        unsafe {
-            if (*self.inner).handles.load(Ordering::Acquire) == 0 {
-                if (*self.inner).allocs.load(Ordering::Acquire) == 0 {
-                    let _ = Box::from_raw(self.stub);
-                    let _ = Box::from_raw(self.inner);
-
-                    return Ok(());
-                }
+    pub fn try_cleanup(mut self) -> Result<(), Self> {
+        self.collect();
+        if self.can_deallocate() {
+            unsafe {
+                let _ = Box::from_raw(self.stub);
+                let _ = Box::from_raw(self.inner);
             }
+            core::mem::forget(self);
+            return Ok(());
         }
 
         Err(self)
+    }
+
+    /// If there are any [`Handle`]s or allocations associated with this Collector returns false.
+    /// If this returns true and the `Collector` is dropped without getting a new [`Handle`] to it, no memory will be leaked.
+    /// Even if this returns false a drop afterward may still not leak memory.
+    pub fn can_deallocate(&self) -> bool {
+        unsafe {
+            (*self.inner).handles.load(Ordering::Acquire) == 0
+                && (*self.inner).allocs.load(Ordering::Acquire) == 0
+        }
+    }
+}
+
+/// Cleans up as much memory as possible.
+/// If [`Handle`]s or allocations associated to this `Collector` still exist, memory is leaked.
+impl Drop for Collector {
+    fn drop(&mut self) {
+        self.collect();
+        if self.can_deallocate() {
+            unsafe {
+                let _ = Box::from_raw(self.stub);
+                let _ = Box::from_raw(self.inner);
+            }
+        }
     }
 }
 
